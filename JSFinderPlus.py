@@ -65,18 +65,26 @@ def read_urls_from_file(file_path):
 
 
 def process_single_url(url, args, t_num):
-    # 设置当前URL的输出文件路径
+    # 根据URL设置输出文件路径（用于兼容旧版本的路径设置）
     filename = urlparse(url).hostname
     if not os.path.exists("output"):
         os.makedirs("output")
     filename = re.sub(re.compile(r'[/\\:*?"<>|]'), "_", filename)
-    globals.set_value("FILE_PATH", "output\\" + filename + ".html")
+    
+    # 固定使用统一的report.html文件作为最终输出
+    globals.set_value("FILE_PATH", "output\\report.html")
+    
+    # 设置URL特定的HTML文件路径（仅用于日志显示，实际不再使用）
+    url_specific_path = "output\\" + filename + ".html"
+    
     globals.set_value("URL", url)
     
     url_queue = queue.Queue(100000)      # 存储待处理的URL
     text_queue = queue.Queue(100000)     # 存储URL对应的HTML内容
     output_queue = queue.Queue(1000000)  # 存储最终处理结果
     globals.set_value("OUT_QUEUE", output_queue)
+    
+    # 每个URL使用独立的ALL_LIST和leak_infos_match，避免不同URL间的干扰
     globals.set_value("ALL_LIST", [])
     globals.set_value("SUBDOMIAN_LIST", [])
     globals.set_value("leak_infos_match", [])
@@ -118,7 +126,7 @@ def process_single_url(url, args, t_num):
     for t in t_list:
         t.join()
     
-    print(color.green("[+]") + f" URL {url} 扫描完成，结果保存在: {globals.get_value('FILE_PATH')}")
+    print(color.green("[+]") + f" URL {url} 扫描完成，数据已合并到: {globals.get_value('FILE_PATH')}")
 
 
 if __name__ == "__main__":
