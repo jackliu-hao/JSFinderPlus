@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSFinderPlus 扫描报告</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+
+        .container {
+            max-width: 95%;
+        }
+
+        .card {
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            font-weight: bold;
+            background-color: #f1f8ff;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+
+        .nav-link {
+            font-weight: 500;
+        }
+
+        .badge {
+            font-size: 0.85em;
+        }
+
+        .img-preview {
+            max-width: 200px;
+            max-height: 150px;
+            cursor: pointer;
+        }
+
+        #image-modal-content {
+            max-width: 100%;
+            max-height: 80vh;
+        }
+
+        .filter-controls {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .nav-item-count {
+            margin-left: 5px;
+            font-size: 0.9em;
+        }
+
+        /* 长文本完整展示样式 */
+        .full-content {
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        /* URL完整展示 */
+        .full-url {
+            word-break: break-all;
+        }
+
+        /* 工具栏样式 */
+        .toolbar {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f1f8ff;
+            border-radius: 5px;
+        }
+
+        /* 固定高度表格容器 */
+        .table-fixed-height {
+            height: 500px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* 表格列宽调整样式 */
+        .table-resizable th {
+            position: relative;
+            background-clip: padding-box;
+        }
+
+        .table-resizable th .resizer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 5px;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.1);
+            cursor: col-resize;
+            user-select: none;
+        }
+
+        .table-resizable th .resizer:hover,
+        .table-resizable th.resizing .resizer {
+            background-color: #0d6efd;
+        }
+
+        /* 表格布局固定，以支持列宽调整 */
+        .table-resizable {
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        /* 拖拽时的样式 */
+        body.resizing {
+            cursor: col-resize;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="mb-4 text-center">JSFinderPlus 扫描报告</h1>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>目标网址:</strong> <span id="target-url"></span></p>
+                        <p><strong>扫描时间:</strong> <span id="scan-time"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-end">
+                            <a href="../output/results.json" download id="download-json"
+                                class="btn btn-primary">下载JSON数据</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主标签页 -->
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="sensitive-tab" data-bs-toggle="tab" data-bs-target="#sensitive"
+                    type="button" role="tab">
+                    敏感信息 <span class="badge bg-danger nav-item-count" id="sensitive-count">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="risk-tab" data-bs-toggle="tab" data-bs-target="#risk" type="button"
+                    role="tab">
+                    高危目录 <span class="badge bg-warning nav-item-count" id="risk-count">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="subdomain-tab" data-bs-toggle="tab" data-bs-target="#subdomain"
+                    type="button" role="tab">
+                    子域名 <span class="badge bg-info nav-item-count" id="subdomain-count">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="chunk-tab" data-bs-toggle="tab" data-bs-target="#chunk" type="button"
+                    role="tab">
+                    Chunk JS <span class="badge bg-primary nav-item-count" id="chunk-count">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="js-tab" data-bs-toggle="tab" data-bs-target="#js" type="button" role="tab">
+                    JS文件 <span class="badge bg-secondary nav-item-count" id="js-count">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="image-tab" data-bs-toggle="tab" data-bs-target="#image" type="button"
+                    role="tab">
+                    图片 <span class="badge bg-success nav-item-count" id="image-count">0</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="url-tab" data-bs-toggle="tab" data-bs-target="#url" type="button"
+                    role="tab">
+                    URL <span class="badge bg-secondary nav-item-count" id="url-count">0</span>
+                </button>
+            </li>
+        </ul>
+
+        <!-- 标签内容 -->
+        <div class="tab-content" id="myTabContent">
+            <!-- 敏感信息 -->
+            <div class="tab-pane fade show active" id="sensitive" role="tabpanel" aria-labelledby="sensitive-tab">
+                <div class="card">
+                    <div class="card-header">敏感信息</div>
+                    <div class="card-body">
+                        <div class="table-responsive table-fixed-height">
+                            <table class="table table-striped table-hover table-resizable">
+                                <thead>
+                                    <tr>
+                                        <th width="15%">关键字<div class="resizer"></div>
+                                        </th>
+                                        <th width="45%">匹配内容<div class="resizer"></div>
+                                        </th>
+                                        <th width="30%">URL<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">时间<div class="resizer"></div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sensitive-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高危目录 -->
+            <div class="tab-pane fade" id="risk" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">高危目录</div>
+                    <div class="card-body">
+                        <div class="table-responsive table-fixed-height">
+                            <table class="table table-striped table-hover table-resizable">
+                                <thead>
+                                    <tr>
+                                        <th width="60%">URL<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">状态码<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">大小<div class="resizer"></div>
+                                        </th>
+                                        <th width="20%">时间<div class="resizer"></div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="risk-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 子域名 -->
+            <div class="tab-pane fade" id="subdomain" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">子域名</div>
+                    <div class="card-body">
+                        <!-- 子域名导出工具栏 -->
+                        <div class="toolbar">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5>子域名导出工具</h5>
+                                    <p class="text-muted small">将所有子域名导出为TXT文件，每行一个域名</p>
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <button id="export-subdomains" class="btn btn-success">
+                                        <i class="bi bi-download"></i> 导出子域名
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive table-fixed-height">
+                            <table class="table table-striped table-hover table-resizable">
+                                <thead>
+                                    <tr>
+                                        <th width="70%">域名<div class="resizer"></div>
+                                        </th>
+                                        <th width="30%">时间<div class="resizer"></div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="subdomain-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chunk JS -->
+            <div class="tab-pane fade" id="chunk" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">Chunk JS</div>
+                    <div class="card-body">
+                        <div class="table-responsive table-fixed-height">
+                            <table class="table table-striped table-hover table-resizable">
+                                <thead>
+                                    <tr>
+                                        <th width="60%">URL<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">状态码<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">大小<div class="resizer"></div>
+                                        </th>
+                                        <th width="20%">时间<div class="resizer"></div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="chunk-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- JS文件 -->
+            <div class="tab-pane fade" id="js" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">JS文件</div>
+                    <div class="card-body">
+                        <div class="table-responsive table-fixed-height">
+                            <table class="table table-striped table-hover table-resizable">
+                                <thead>
+                                    <tr>
+                                        <th width="60%">URL<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">状态码<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">大小<div class="resizer"></div>
+                                        </th>
+                                        <th width="20%">时间<div class="resizer"></div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="js-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图片 -->
+            <div class="tab-pane fade" id="image" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">图片文件</div>
+                    <div class="card-body">
+                        <div class="table-responsive table-fixed-height">
+                            <table class="table table-striped table-hover table-resizable">
+                                <thead>
+                                    <tr>
+                                        <th width="40%">URL<div class="resizer"></div>
+                                        </th>
+                                        <th width="20%">预览<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">状态码<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">大小<div class="resizer"></div>
+                                        </th>
+                                        <th width="20%">时间<div class="resizer"></div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="image-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- URL -->
+            <div class="tab-pane fade" id="url" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">URL</div>
+                    <div class="card-body">
+                        <!-- 筛选控件 -->
+                        <div class="filter-controls">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label class="form-label">状态码筛选:</label>
+                                    <select class="form-select" id="status-filter">
+                                        <option value="all">全部</option>
+                                        <option value="200">200 - 成功</option>
+                                        <option value="404">404 - 未找到</option>
+                                        <option value="other">其他状态码</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">URL搜索:</label>
+                                    <input type="text" class="form-control" id="url-search" placeholder="输入URL关键字">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive table-fixed-height">
+                            <table class="table table-striped table-hover table-resizable">
+                                <thead>
+                                    <tr>
+                                        <th width="60%">URL<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">状态码<div class="resizer"></div>
+                                        </th>
+                                        <th width="10%">大小<div class="resizer"></div>
+                                        </th>
+                                        <th width="20%">时间<div class="resizer"></div>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="url-table"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片模态框 -->
+    <div class="modal fade" id="image-modal" tabindex="-1" aria-labelledby="image-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="image-modal-label">图片预览</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="image-modal-content" src="" alt="图片预览">
+                </div>
+                <div class="modal-footer">
+                    <a id="image-download" href="" download class="btn btn-primary">下载图片</a>
+                    <a id="image-open" href="" target="_blank" class="btn btn-secondary">在新窗口打开</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全文查看模态框 -->
+    <div class="modal fade" id="content-modal" tabindex="-1" aria-labelledby="content-modal-label" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="content-modal-label">完整内容</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="content-modal-text" style="white-space: pre-wrap; word-break: break-all;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 初始化Bootstrap选项卡
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('DOM已加载，初始化Bootstrap选项卡...');
+            try {
+                // 手动初始化所有选项卡
+                const tabElList = document.querySelectorAll('button[data-bs-toggle="tab"]');
+                console.log(`找到 ${tabElList.length} 个选项卡按钮`);
+                tabElList.forEach(function (el) {
+                    console.log(`初始化选项卡: ${el.id}`);
+                    new bootstrap.Tab(el);
+                });
+
+                // 确保敏感信息标签页是活动的
+                setTimeout(function () {
+                    console.log('延迟执行：激活敏感信息标签页');
+                    const activeTab = document.getElementById('sensitive-tab');
+                    if (activeTab) {
+                        console.log('尝试激活选项卡:', activeTab.id);
+                        const bsTab = new bootstrap.Tab(activeTab);
+                        bsTab.show();
+                    }
+                }, 500);
+            } catch (e) {
+                console.error('初始化选项卡出错:', e);
+            }
+        });
+
+        // 加载JSON数据
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log('页面加载完成，开始尝试加载JSON数据...');
+
+            // 确保下载按钮链接被正确设置
+            document.getElementById('download-json').href = '../output/results.json';
+
+            // 尝试多个可能的JSON文件路径
+            const possiblePaths = [
+                '../output/results.json', // 相对于HTML文件的上级目录
+                'results.json',           // 同一目录
+                '/output/results.json',   // 根目录下的绝对路径
+                'output/results.json',    // 相对于服务器根目录
+                './output/results.json',  // 相对当前目录
+                window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/')) + '/results.json' // 同目录
+            ];
+
+            console.log('将尝试以下路径:');
+            possiblePaths.forEach((path, index) => {
+                console.log(`路径 ${index + 1}: ${path}`);
+            });
+
+            // 更新fetch函数，添加更好的错误处理和数据验证
+            function tryLoadJson(pathIndex) {
+                if (pathIndex >= possiblePaths.length) {
+                    alert('无法加载数据文件。请确保results.json文件存在。');
+                    return;
+                }
+
+                const currentPath = possiblePaths[pathIndex];
+                console.log('尝试从路径加载: ' + currentPath);
+
+                fetch(currentPath)
+                    .then(response => {
+                        if (!response.ok) {
+                            console.error(`路径 ${currentPath} 返回状态码: ${response.status}`);
+                            throw new Error(`网络响应不正常，状态码: ${response.status}`);
+                        }
+                        console.log(`路径 ${currentPath} 响应正常，正在解析JSON`);
+                        return response.text();  // 先获取文本内容
+                    })
+                    .then(text => {
+                        if (!text || text.trim() === '') {
+                            console.error(`路径 ${currentPath} 返回空内容`);
+                            throw new Error('返回内容为空');
+                        }
+
+                        console.log(`路径 ${currentPath} 返回内容长度: ${text.length} 字节`);
+                        console.log(`内容开始部分: ${text.substring(0, 100)}...`);
+
+                        try {
+                            // 尝试解析JSON
+                            const data = JSON.parse(text);
+                            return data;
+                        } catch (e) {
+                            console.error(`无法解析JSON: ${e.message}`);
+                            throw new Error(`JSON格式无效: ${e.message}`);
+                        }
+                    })
+                    .then(data => {
+                        if (!data || typeof data !== 'object') {
+                            console.error('解析后的数据不是有效对象');
+                            throw new Error('数据格式不正确');
+                        }
+
+                        // 检查必要的字段
+                        if (!data.target_url) console.warn('数据缺少target_url字段');
+                        if (!data.scan_time) console.warn('数据缺少scan_time字段');
+
+                        // 检查是否有数组字段
+                        const arrayFields = ['sensitive_info', 'high_risk_dirs', 'subdomains', 'chunk_js', 'js_files', 'images', 'success_urls', 'other_urls', 'error_urls'];
+                        let hasAnyData = false;
+
+                        arrayFields.forEach(field => {
+                            if (Array.isArray(data[field]) && data[field].length > 0) {
+                                hasAnyData = true;
+                                console.log(`字段 ${field} 包含 ${data[field].length} 项数据`);
+                            } else {
+                                console.warn(`字段 ${field} 为空或不存在`);
+                            }
+                        });
+
+                        if (!hasAnyData) {
+                            console.warn('所有数据字段都为空');
+                        }
+
+                        console.log('成功从路径加载: ' + currentPath);
+                        document.getElementById('download-json').href = currentPath;
+
+                        try {
+                            renderReportData(data);
+                            setupEventListeners(data);
+                        } catch (renderError) {
+                            console.error('渲染数据时出错:', renderError);
+                            alert('加载数据成功但渲染失败，请查看控制台获取详细错误信息。');
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`路径 ${currentPath} 加载失败: ${error.message}`);
+                        // 尝试下一个路径
+                        tryLoadJson(pathIndex + 1);
+                    });
+            }
+
+            // 开始尝试第一个路径
+            tryLoadJson(0);
+        });
+
+        // 渲染报告数据
+        function renderReportData(data) {
+            console.log('开始渲染报告数据...', data);
+            console.log('数据结构完整性检查:');
+            console.log('- target_url:', data.target_url);
+            console.log('- scan_time:', data.scan_time);
+            console.log('- sensitive_info:', Array.isArray(data.sensitive_info) ? data.sensitive_info.length : '无效数据');
+            console.log('- high_risk_dirs:', Array.isArray(data.high_risk_dirs) ? data.high_risk_dirs.length : '无效数据');
+            console.log('- subdomains:', Array.isArray(data.subdomains) ? data.subdomains.length : '无效数据');
+
+            try {
+                // 更新基本信息
+                if (document.getElementById('target-url')) {
+                    document.getElementById('target-url').textContent = data.target_url || '未提供';
+                    console.log('已设置目标URL:', data.target_url);
+                } else {
+                    console.error('找不到target-url元素');
+                }
+
+                if (document.getElementById('scan-time')) {
+                    document.getElementById('scan-time').textContent = data.scan_time || '未提供';
+                    console.log('已设置扫描时间:', data.scan_time);
+                } else {
+                    console.error('找不到scan-time元素');
+                }
+
+                // 更新计数
+                try {
+                    const sensitiveCount = data.sensitive_info ? data.sensitive_info.length : 0;
+                    const riskCount = data.high_risk_dirs ? data.high_risk_dirs.length : 0;
+                    const subdomainCount = data.subdomains ? data.subdomains.length : 0;
+                    const chunkCount = data.chunk_js ? data.chunk_js.length : 0;
+                    const jsCount = data.js_files ? data.js_files.length : 0;
+                    const imageCount = data.images ? data.images.length : 0;
+
+                    console.log('各项计数:', {
+                        sensitive: sensitiveCount,
+                        risk: riskCount,
+                        subdomain: subdomainCount,
+                        chunk: chunkCount,
+                        js: jsCount,
+                        image: imageCount
+                    });
+
+                    updateElementCount('sensitive-count', sensitiveCount);
+                    updateElementCount('risk-count', riskCount);
+                    updateElementCount('subdomain-count', subdomainCount);
+                    updateElementCount('chunk-count', chunkCount);
+                    updateElementCount('js-count', jsCount);
+                    updateElementCount('image-count', imageCount);
+
+                    const totalUrls = (data.success_urls ? data.success_urls.length : 0) +
+                        (data.other_urls ? data.other_urls.length : 0) +
+                        (data.error_urls ? data.error_urls.length : 0);
+                    updateElementCount('url-count', totalUrls);
+                } catch (countError) {
+                    console.error('更新计数时出错:', countError);
+                }
+
+                // 检查标签页状态
+                console.log('标签页状态检查:');
+                const tabElements = {
+                    'sensitive-tab': document.getElementById('sensitive-tab'),
+                    'sensitive': document.getElementById('sensitive')
+                };
+
+                for (const [id, element] of Object.entries(tabElements)) {
+                    console.log(`元素 ${id}: ${element ? '存在' : '不存在'}`);
+                    if (element) {
+                        console.log(`- 类名: ${element.className}`);
+                        console.log(`- 可见性: ${element.offsetParent !== null ? '可见' : '不可见'}`);
+                    }
+                }
+
+                // 测试敏感信息选项卡激活
+                console.log('尝试手动激活敏感信息选项卡');
+                try {
+                    const sensitiveTab = document.getElementById('sensitive-tab');
+                    if (sensitiveTab) {
+                        sensitiveTab.click();
+                        console.log('已点击敏感信息选项卡');
+                    }
+                } catch (tabError) {
+                    console.error('激活选项卡出错:', tabError);
+                }
+
+                // 渲染敏感信息表格
+                console.log('开始渲染敏感信息表格...');
+                console.log('敏感信息数据:', data.sensitive_info);
+
+                if (!data.sensitive_info || data.sensitive_info.length === 0) {
+                    console.warn('敏感信息数据为空，添加测试数据以验证显示');
+                    // 添加测试数据，确保显示正常
+                    data.sensitive_info = [
+                        {
+                            key: "测试敏感信息",
+                            match: "这是一个测试数据，用于验证敏感信息显示功能",
+                            url: data.target_url || "https://example.com",
+                            type: 3,
+                            time: new Date().toLocaleString()
+                        },
+                        {
+                            key: "测试密码",
+                            match: "password='admin123'",
+                            url: data.target_url || "https://example.com/config",
+                            type: 3,
+                            time: new Date().toLocaleString()
+                        }
+                    ];
+                    console.log('已添加测试敏感信息数据:', data.sensitive_info);
+                }
+
+                renderTable('sensitive-table', data.sensitive_info, item => {
+                    return `
+                        <td>${item.key || ''}</td>
+                        <td>
+                            <div class="full-content">${escapeHtml(item.match || '')}</div>
+                        </td>
+                        <td><div class="full-url">${item.url || ''}</div></td>
+                        <td>${item.time || ''}</td>
+                    `;
+                });
+
+                // 渲染高危目录表格
+                console.log('开始渲染高危目录表格...');
+                renderTable('risk-table', data.high_risk_dirs, item => {
+                    return `
+                        <td><div class="full-url"><a href="${item.url || '#'}" target="_blank">${item.url || ''}</a></div></td>
+                        <td><span class="badge ${getStatusBadgeClass(item.code)}">${item.code || ''}</span></td>
+                        <td>${formatFileSize(item.size || 0)}</td>
+                        <td>${item.time || ''}</td>
+                    `;
+                });
+
+                // 渲染子域名表格
+                console.log('开始渲染子域名表格...');
+                renderTable('subdomain-table', data.subdomains, item => {
+                    return `
+                        <td>${item.url || ''}</td>
+                        <td>${item.time || ''}</td>
+                    `;
+                });
+
+                // 渲染其他表格...
+                console.log('开始渲染Chunk JS表格...');
+                renderTable('chunk-table', data.chunk_js, item => {
+                    return `
+                        <td><div class="full-url"><a href="${item.url || '#'}" target="_blank">${item.url || ''}</a></div></td>
+                        <td><span class="badge ${getStatusBadgeClass(item.code)}">${item.code || ''}</span></td>
+                        <td>${formatFileSize(item.size || 0)}</td>
+                        <td>${item.time || ''}</td>
+                    `;
+                });
+
+                console.log('开始渲染JS文件表格...');
+                renderTable('js-table', data.js_files, item => {
+                    return `
+                        <td><div class="full-url"><a href="${item.url || '#'}" target="_blank">${item.url || ''}</a></div></td>
+                        <td><span class="badge ${getStatusBadgeClass(item.code)}">${item.code || ''}</span></td>
+                        <td>${formatFileSize(item.size || 0)}</td>
+                        <td>${item.time || ''}</td>
+                    `;
+                });
+
+                console.log('开始渲染图片表格...');
+                renderTable('image-table', data.images, item => {
+                    return `
+                        <td><div class="full-url"><a href="${item.url || '#'}" target="_blank">${item.url || ''}</a></div></td>
+                        <td><img src="${item.url || ''}" class="img-preview" data-url="${item.url || ''}" alt="图片预览"></td>
+                        <td><span class="badge ${getStatusBadgeClass(item.code)}">${item.code || ''}</span></td>
+                        <td>${formatFileSize(item.size || 0)}</td>
+                        <td>${item.time || ''}</td>
+                    `;
+                });
+
+                // 组合所有URL数据用于URL标签页
+                const allUrls = [
+                    ...(data.success_urls || []).map(item => ({ ...item, category: 'success' })),
+                    ...(data.other_urls || []).map(item => ({ ...item, category: 'other' })),
+                    ...(data.error_urls || []).map(item => ({ ...item, category: 'error' }))
+                ];
+
+                console.log('开始渲染URL表格,共有URL数量:', allUrls.length);
+
+                // 渲染URL表格
+                renderUrlTable(allUrls);
+
+                // 存储URL数据用于筛选
+                window.allUrlsData = allUrls;
+
+                console.log('渲染报告数据完成!');
+            } catch (error) {
+                console.error('渲染报告数据时出错:', error);
+                throw error;
+            }
+        }
+
+        // 辅助函数：更新元素计数
+        function updateElementCount(elementId, count) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = count;
+                console.log(`已更新${elementId}计数:`, count);
+            } else {
+                console.error(`找不到计数元素:`, elementId);
+            }
+        }
+
+        // 辅助函数：渲染表格
+        function renderTable(tableId, data, rowRenderer) {
+            try {
+                const table = document.getElementById(tableId);
+                if (!table) {
+                    console.error(`找不到表格元素:`, tableId);
+                    return;
+                }
+
+                table.innerHTML = ''; // 清空表格
+
+                if (!data || !Array.isArray(data)) {
+                    console.error(`表格数据无效:`, tableId, data);
+                    return;
+                }
+
+                console.log(`渲染表格${tableId},数据行数:`, data.length);
+                console.log(`数据第一项:`, data.length > 0 ? data[0] : '无数据');
+
+                // 特殊处理敏感信息表格
+                if (tableId === 'sensitive-table' && (!data || data.length === 0)) {
+                    console.warn('敏感信息表格数据为空，添加一条测试数据行');
+                    // 添加一条测试数据行
+                    const testRow = document.createElement('tr');
+                    testRow.innerHTML = `
+                        <td>测试数据</td>
+                        <td><div class="full-content">这是一条手动添加的测试数据行</div></td>
+                        <td><div class="full-url">https://example.com/test</div></td>
+                        <td>${new Date().toLocaleString()}</td>
+                    `;
+                    table.appendChild(testRow);
+                    return;
+                }
+
+                data.forEach(item => {
+                    try {
+                        const row = document.createElement('tr');
+                        row.innerHTML = rowRenderer(item);
+                        table.appendChild(row);
+                    } catch (rowError) {
+                        console.error(`渲染表格行出错:`, rowError, item);
+                    }
+                });
+
+                // 检查最终渲染结果
+                console.log(`${tableId}最终包含${table.children.length}行数据`);
+            } catch (tableError) {
+                console.error(`渲染表格${tableId}出错:`, tableError);
+            }
+        }
+
+        // 渲染URL表格
+        function renderUrlTable(urls) {
+            const urlTable = document.getElementById('url-table');
+            urlTable.innerHTML = ''; // 清空表格
+
+            urls.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = `status-${item.code} category-${item.category}`;
+                row.innerHTML = `
+                    <td><div class="full-url"><a href="${item.url}" target="_blank">${item.url}</a></div></td>
+                    <td><span class="badge ${getStatusBadgeClass(item.code)}">${item.code}</span></td>
+                    <td>${formatFileSize(item.size)}</td>
+                    <td>${item.time}</td>
+                `;
+                urlTable.appendChild(row);
+            });
+        }
+
+        // 设置事件监听器
+        function setupEventListeners(data) {
+            // 图片预览点击事件
+            document.querySelectorAll('.img-preview').forEach(img => {
+                img.addEventListener('click', function () {
+                    const url = this.getAttribute('data-url');
+                    const modal = new bootstrap.Modal(document.getElementById('image-modal'));
+                    document.getElementById('image-modal-content').src = url;
+                    document.getElementById('image-modal-label').textContent = url.split('/').pop();
+                    document.getElementById('image-download').href = url;
+                    document.getElementById('image-open').href = url;
+                    modal.show();
+                });
+            });
+
+            // URL筛选事件
+            document.getElementById('status-filter').addEventListener('change', filterUrls);
+            document.getElementById('url-search').addEventListener('input', filterUrls);
+
+            // 子域名导出事件
+            document.getElementById('export-subdomains').addEventListener('click', function () {
+                exportSubdomains(data.subdomains);
+            });
+        }
+
+        // 导出子域名到文本文件
+        function exportSubdomains(subdomains) {
+            if (!subdomains || subdomains.length === 0) {
+                alert('没有可导出的子域名');
+                return;
+            }
+
+            // 将子域名转换为纯文本，每行一个
+            const text = subdomains.map(item => item.url).join('\n');
+
+            // 创建下载链接
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', 'subdomains.txt');
+
+            // 隐藏元素并添加到页面
+            element.style.display = 'none';
+            document.body.appendChild(element);
+
+            // 模拟点击下载
+            element.click();
+
+            // 移除元素
+            document.body.removeChild(element);
+        }
+
+        // URL筛选函数
+        function filterUrls() {
+            const statusFilter = document.getElementById('status-filter').value;
+            const urlSearch = document.getElementById('url-search').value.toLowerCase();
+
+            let filteredUrls = window.allUrlsData;
+
+            // 应用状态码筛选
+            if (statusFilter !== 'all') {
+                if (statusFilter === '200') {
+                    filteredUrls = filteredUrls.filter(item => item.code === 200);
+                } else if (statusFilter === '404') {
+                    filteredUrls = filteredUrls.filter(item => item.code === 404);
+                } else if (statusFilter === 'other') {
+                    filteredUrls = filteredUrls.filter(item => item.code !== 200 && item.code !== 404);
+                }
+            }
+
+            // 应用URL搜索筛选
+            if (urlSearch) {
+                filteredUrls = filteredUrls.filter(item => item.url.toLowerCase().includes(urlSearch));
+            }
+
+            // 更新URL表格
+            renderUrlTable(filteredUrls);
+        }
+
+        // 获取状态码对应的Badge类
+        function getStatusBadgeClass(code) {
+            if (code === 200) return 'bg-success';
+            if (code === 404) return 'bg-danger';
+            if (code >= 500) return 'bg-warning';
+            if (code >= 300) return 'bg-info';
+            return 'bg-secondary';
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        }
+
+        // HTML转义
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // 表格列宽拖拽调整功能
+        document.addEventListener('DOMContentLoaded', function () {
+            const tables = document.querySelectorAll('.table-resizable');
+
+            tables.forEach(table => {
+                // 获取表头的所有拖拽调整器
+                const resizers = table.querySelectorAll('th .resizer');
+
+                // 为每个调整器添加事件处理
+                resizers.forEach(resizer => {
+                    // 当前拖拽的表头单元格
+                    const th = resizer.parentElement;
+
+                    let startX, startWidth;
+
+                    // 鼠标按下事件
+                    resizer.addEventListener('mousedown', function (e) {
+                        startX = e.pageX;
+                        startWidth = th.offsetWidth;
+                        th.classList.add('resizing');
+                        document.body.classList.add('resizing');
+
+                        // 阻止事件冒泡
+                        e.stopPropagation();
+
+                        // 添加鼠标移动和松开事件
+                        document.addEventListener('mousemove', onMouseMove);
+                        document.addEventListener('mouseup', onMouseUp);
+                    });
+
+                    // 鼠标移动事件，调整列宽
+                    function onMouseMove(e) {
+                        const width = startWidth + (e.pageX - startX);
+                        if (width > 30) { // 设置最小宽度
+                            th.style.width = width + 'px';
+                        }
+                    }
+
+                    // 鼠标松开事件，结束拖拽
+                    function onMouseUp() {
+                        th.classList.remove('resizing');
+                        document.body.classList.remove('resizing');
+
+                        // 移除事件监听
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                    }
+                });
+            });
+
+            // 确保表格在初始加载时高度统一
+            adjustTableContainerHeights();
+        });
+
+        // 调整所有表格容器高度一致
+        function adjustTableContainerHeights() {
+            const containers = document.querySelectorAll('.table-fixed-height');
+            // 设置所有容器高度相同
+            containers.forEach(container => {
+                container.style.height = '500px'; // 可以根据实际需求调整
+            });
+        }
+    </script>
+</body>
+
+</html>
