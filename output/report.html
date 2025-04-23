@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSFinderPlus 批量扫描报告</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+
+        .container {
+            max-width: 95%;
+        }
+
+        .card {
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            font-weight: bold;
+            background-color: #f1f8ff;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+
+        .nav-link {
+            font-weight: 500;
+        }
+
+        .badge {
+            font-size: 0.85em;
+        }
+
+        /* 表格样式 */
+        .table-fixed-height {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        /* 表格内容紧凑布局 */
+        .table-striped>tbody>tr {
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .table-striped>tbody>tr:last-child {
+            border-bottom: none;
+        }
+
+        /* 表格列宽可调整样式 */
+        .table-resizable th {
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 文本省略号样式 - 更新以支持多行文本截断 */
+        .truncate {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* 匹配内容的多行截断样式 */
+        .match-content-truncate {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            /* 显示2行 */
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-height: 50px;
+            /* 限制高度 */
+            word-break: break-word;
+        }
+
+        /* 固定匹配内容列的宽度，但允许调整 */
+        .match-content-column {
+            width: 300px;
+            min-width: 200px;
+        }
+
+        .resizer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 5px;
+            height: 100%;
+            cursor: col-resize;
+            user-select: none;
+        }
+
+        .resizer:hover,
+        .resizing {
+            background-color: rgba(0, 123, 255, 0.5);
+        }
+
+        /* 全文内容样式 */
+        .full-url {
+            word-break: break-word;
+            white-space: pre-wrap;
+            max-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .full-content {
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .img-preview {
+            max-width: 200px;
+            max-height: 150px;
+            cursor: pointer;
+        }
+
+        #image-modal-content {
+            max-width: 100%;
+            max-height: 80vh;
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="mb-4 text-center">JSFinderPlus 批量扫描报告</h1>
+
+        <!-- 加载中提示 -->
+        <div id="loading" class="loading">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+            </div>
+            <span class="ms-3">加载中，请稍候...</span>
+        </div>
+
+        <!-- 报告内容，初始隐藏 -->
+        <div id="report-content" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>批量扫描:</strong> <span id="target-count">0</span> 个目标</p>
+                            <p><strong>扫描时间:</strong> <span id="scan-time"></span></p>
+                            <div class="mt-2">
+                                <select id="target-selector" class="form-select">
+                                    <option value="all">所有目标</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-end">
+                                <a href="results.json" download id="download-json" class="btn btn-primary">下载JSON数据</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主标签页 -->
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="sensitive-tab" data-bs-toggle="tab" data-bs-target="#sensitive"
+                        type="button" role="tab">
+                        敏感信息 <span class="badge bg-danger" id="sensitive-count">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="risk-tab" data-bs-toggle="tab" data-bs-target="#risk" type="button"
+                        role="tab">
+                        高危目录 <span class="badge bg-warning" id="risk-count">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="subdomain-tab" data-bs-toggle="tab" data-bs-target="#subdomain"
+                        type="button" role="tab">
+                        子域名 <span class="badge bg-info" id="subdomain-count">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="chunk-tab" data-bs-toggle="tab" data-bs-target="#chunk" type="button"
+                        role="tab">
+                        Chunk JS <span class="badge bg-primary" id="chunk-count">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="js-tab" data-bs-toggle="tab" data-bs-target="#js" type="button"
+                        role="tab">
+                        JS文件 <span class="badge bg-secondary" id="js-count">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="image-tab" data-bs-toggle="tab" data-bs-target="#image" type="button"
+                        role="tab">
+                        图片 <span class="badge bg-success" id="image-count">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="url-tab" data-bs-toggle="tab" data-bs-target="#url" type="button"
+                        role="tab">
+                        URL <span class="badge bg-secondary" id="url-count">0</span>
+                    </button>
+                </li>
+            </ul>
+
+            <!-- 标签内容 -->
+            <div class="tab-content" id="myTabContent">
+                <!-- 敏感信息 -->
+                <div class="tab-pane fade show active" id="sensitive" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">敏感信息</div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">关键字类型筛选:</label>
+                                    <select class="form-select" id="sensitive-key-filter">
+                                        <option value="all">全部类型</option>
+                                        <!-- 将由JS动态填充 -->
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">内容搜索:</label>
+                                    <input type="text" class="form-control" id="sensitive-search"
+                                        placeholder="输入匹配内容关键字">
+                                </div>
+                            </div>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-3">
+                                <button id="export-sensitive" class="btn btn-danger">
+                                    导出敏感信息为TXT
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-resizable">
+                                    <thead>
+                                        <tr>
+                                            <th width="15%">关键字<div class="resizer"></div>
+                                            </th>
+                                            <th width="300px" class="match-content-column">匹配内容<div class="resizer">
+                                                </div>
+                                            </th>
+                                            <th width="30%">URL<div class="resizer"></div>
+                                            </th>
+                                            <th width="10%">时间<div class="resizer"></div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sensitive-table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 高危目录 -->
+                <div class="tab-pane fade" id="risk" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">高危目录</div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-resizable">
+                                    <thead>
+                                        <tr>
+                                            <th width="60%">URL<div class="resizer"></div>
+                                            </th>
+                                            <th width="10%">状态码<div class="resizer"></div>
+                                            </th>
+                                            <th width="10%">大小<div class="resizer"></div>
+                                            </th>
+                                            <th width="20%">时间<div class="resizer"></div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="risk-table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 子域名 -->
+                <div class="tab-pane fade" id="subdomain" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">子域名</div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-3">
+                                <button id="export-subdomains" class="btn btn-success">
+                                    导出子域名为TXT
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-resizable">
+                                    <thead>
+                                        <tr>
+                                            <th width="70%">域名<div class="resizer"></div>
+                                            </th>
+                                            <th width="30%">时间<div class="resizer"></div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="subdomain-table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chunk JS -->
+                <div class="tab-pane fade" id="chunk" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">Chunk JS</div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-resizable">
+                                    <thead>
+                                        <tr>
+                                            <th width="60%">URL<div class="resizer"></div>
+                                            </th>
+                                            <th width="10%">状态码<div class="resizer"></div>
+                                            </th>
+                                            <th width="10%">大小<div class="resizer"></div>
+                                            </th>
+                                            <th width="20%">时间<div class="resizer"></div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="chunk-table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- JS文件 -->
+                <div class="tab-pane fade" id="js" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">JS文件</div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-resizable">
+                                    <thead>
+                                        <tr>
+                                            <th width="60%">URL<div class="resizer"></div>
+                                            </th>
+                                            <th width="10%">状态码<div class="resizer"></div>
+                                            </th>
+                                            <th width="10%">大小<div class="resizer"></div>
+                                            </th>
+                                            <th width="20%">时间<div class="resizer"></div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="js-table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 图片 -->
+                <div class="tab-pane fade" id="image" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">图片文件</div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-resizable">
+                                    <thead>
+                                        <tr>
+                                            <th width="40%">URL<div class="resizer"></div>
+                                            </th>
+                                            <th width="20%">预览<div class="resizer"></div>
+                                            </th>
+                                            <th width="10%">状态码<div class="resizer"></div>
+                                            </th>
+                                            <th width="10%">大小<div class="resizer"></div>
+                                            </th>
+                                            <th width="20%">时间<div class="resizer"></div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="image-table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- URL -->
+                <div class="tab-pane fade" id="url" role="tabpanel">
+                    <div class="card">
+                        <div class="card-header">URL</div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">状态码筛选:</label>
+                                    <select class="form-select" id="status-filter">
+                                        <option value="all">全部</option>
+                                        <option value="200">200 - 成功</option>
+                                        <option value="404">404 - 未找到</option>
+                                        <option value="other">其他状态码</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label">URL搜索:</label>
+                                    <input type="text" class="form-control" id="url-search" placeholder="输入URL关键字">
+                                </div>
+                            </div>
+                            <div class="table-responsive" id="url-table-container">
+                                <!-- 表格将由JavaScript动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片预览模态框 -->
+    <div class="modal fade" id="image-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">图片预览</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="image-modal-content" src="" alt="图片预览">
+                </div>
+                <div class="modal-footer">
+                    <a id="image-download" href="" download class="btn btn-primary">下载图片</a>
+                    <a id="image-open" href="" target="_blank" class="btn btn-secondary">在新窗口打开</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全文查看模态框 -->
+    <div class="modal fade" id="content-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">完整内容</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="content-modal-text" style="white-space: pre-wrap; word-break: break-all;"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let allData = null;
+        let currentTarget = 'all';
+        let allUrlsData = [];
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function () {
+            loadJsonData();
+
+            // 添加事件监听器
+            document.getElementById('target-selector').addEventListener('change', function () {
+                currentTarget = this.value;
+                filterDataByTarget();
+            });
+
+            document.getElementById('status-filter').addEventListener('change', filterUrls);
+            document.getElementById('url-search').addEventListener('input', filterUrls);
+            document.getElementById('export-subdomains').addEventListener('click', exportSubdomains);
+
+            // 新增敏感信息筛选和导出事件监听
+            document.getElementById('sensitive-key-filter').addEventListener('change', filterSensitiveInfo);
+            document.getElementById('sensitive-search').addEventListener('input', filterSensitiveInfo);
+            document.getElementById('export-sensitive').addEventListener('click', exportSensitiveInfo);
+
+            // 初始化表格列宽调整功能
+            initResizableTables();
+        });
+
+        // 加载JSON数据
+        function loadJsonData() {
+            fetch('results.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`请求失败: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('数据加载成功', data);
+                    allData = data;
+
+                    // 隐藏加载提示，显示报告内容
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('report-content').style.display = 'block';
+
+                    // 显示基本信息
+                    document.getElementById('scan-time').textContent = data.scan_time || '未提供';
+
+                    // 初始化目标选择器
+                    initTargetSelector(data);
+
+                    // 初始化状态码筛选器
+                    initStatusFilter(data);
+
+                    // 渲染数据
+                    filterDataByTarget();
+
+                    // 初始化Bootstrap标签页
+                    const tabEl = document.getElementById('myTab');
+                    const tab = new bootstrap.Tab(tabEl);
+                })
+                .catch(error => {
+                    console.error('加载数据失败:', error);
+                    document.getElementById('loading').innerHTML = `
+                        <div class="alert alert-danger" role="alert">
+                            <h4 class="alert-heading">数据加载失败!</h4>
+                            <p>${error.message}</p>
+                            <hr>
+                            <p class="mb-0">请确保 results.json 文件存在并且格式正确。</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // 初始化目标选择器
+        function initTargetSelector(data) {
+            const selector = document.getElementById('target-selector');
+            selector.innerHTML = '<option value="all">所有目标</option>';
+
+            if (data.target_urls && Array.isArray(data.target_urls)) {
+                document.getElementById('target-count').textContent = data.target_urls.length;
+
+                data.target_urls.forEach(url => {
+                    const option = document.createElement('option');
+                    option.value = url;
+                    option.textContent = url;
+                    selector.appendChild(option);
+                });
+            } else if (data.target_url) {
+                document.getElementById('target-count').textContent = '1';
+
+                const option = document.createElement('option');
+                option.value = data.target_url;
+                option.textContent = data.target_url;
+                selector.appendChild(option);
+            } else {
+                document.getElementById('target-count').textContent = '0';
+            }
+
+            // 初始化敏感信息关键字筛选器
+            initSensitiveKeyFilter(data);
+        }
+
+        // 初始化状态码筛选器
+        function initStatusFilter(data) {
+            const statusFilter = document.getElementById('status-filter');
+            if (!statusFilter) return;
+
+            // 收集所有URL的状态码
+            const allStatusCodes = new Set();
+
+            // 从不同类型的URL中收集状态码
+            const collectCodes = (urls) => {
+                if (Array.isArray(urls)) {
+                    urls.forEach(url => {
+                        if (url && url.code) {
+                            allStatusCodes.add(url.code);
+                        }
+                    });
+                }
+            };
+
+            // 收集各种URL类型的状态码
+            collectCodes(data.success_urls);
+            collectCodes(data.other_urls);
+            collectCodes(data.error_urls);
+            collectCodes(data.js_files);
+            collectCodes(data.chunk_js);
+            collectCodes(data.images);
+            collectCodes(data.high_risk_dirs);
+
+            // 将Set转换为数组并排序
+            const sortedStatusCodes = Array.from(allStatusCodes).sort((a, b) => a - b);
+
+            // 清空当前选项
+            statusFilter.innerHTML = '';
+
+            // 添加"全部"选项
+            const allOption = document.createElement('option');
+            allOption.value = 'all';
+            allOption.textContent = '全部';
+            statusFilter.appendChild(allOption);
+
+            // 添加各个状态码选项
+            sortedStatusCodes.forEach(code => {
+                const option = document.createElement('option');
+                option.value = code;
+
+                // 添加常见状态码的说明
+                let statusText = '';
+                if (code === 200) statusText = ' - 成功';
+                else if (code === 301) statusText = ' - 永久重定向';
+                else if (code === 302) statusText = ' - 临时重定向';
+                else if (code === 304) statusText = ' - 未修改';
+                else if (code === 400) statusText = ' - 错误请求';
+                else if (code === 401) statusText = ' - 未授权';
+                else if (code === 403) statusText = ' - 禁止访问';
+                else if (code === 404) statusText = ' - 未找到';
+                else if (code === 500) statusText = ' - 服务器错误';
+                else if (code === 502) statusText = ' - 网关错误';
+                else if (code === 503) statusText = ' - 服务不可用';
+
+                option.textContent = `${code}${statusText}`;
+                statusFilter.appendChild(option);
+            });
+
+            // 添加"其他"选项
+            if (sortedStatusCodes.length > 0) {
+                const otherOption = document.createElement('option');
+                otherOption.value = 'other';
+                otherOption.textContent = '其他状态码';
+                statusFilter.appendChild(otherOption);
+            }
+        }
+
+        // 根据目标筛选数据
+        function filterDataByTarget() {
+            if (!allData) return;
+
+            // 创建筛选后的数据对象
+            const filteredData = {
+                sensitive_info: [],
+                high_risk_dirs: [],
+                subdomains: [],
+                chunk_js: [],
+                js_files: [],
+                images: [],
+                success_urls: [],
+                other_urls: [],
+                error_urls: []
+            };
+
+            // 根据目标URL筛选数据
+            const filterByUrl = url => {
+                return currentTarget === 'all' || url.includes(currentTarget);
+            };
+
+            // 筛选各类数据
+            if (allData.sensitive_info) {
+                filteredData.sensitive_info = allData.sensitive_info.filter(item => filterByUrl(item.url));
+            }
+
+            if (allData.high_risk_dirs) {
+                filteredData.high_risk_dirs = allData.high_risk_dirs.filter(item => filterByUrl(item.url));
+            }
+
+            if (allData.subdomains) {
+                filteredData.subdomains = allData.subdomains.filter(item => filterByUrl(item.url));
+            }
+
+            if (allData.chunk_js) {
+                filteredData.chunk_js = allData.chunk_js.filter(item => filterByUrl(item.url));
+            }
+
+            if (allData.js_files) {
+                filteredData.js_files = allData.js_files.filter(item => filterByUrl(item.url));
+            }
+
+            if (allData.images) {
+                filteredData.images = allData.images.filter(item => filterByUrl(item.url));
+            }
+
+            if (allData.success_urls) {
+                filteredData.success_urls = allData.success_urls.filter(item => filterByUrl(item.url));
+            }
+
+            if (allData.other_urls) {
+                filteredData.other_urls = allData.other_urls.filter(item => filterByUrl(item.url));
+            }
+
+            if (allData.error_urls) {
+                filteredData.error_urls = allData.error_urls.filter(item => filterByUrl(item.url));
+            }
+
+            // 渲染筛选后的数据
+            renderData(filteredData);
+        }
+
+        // 渲染数据到页面
+        function renderData(data) {
+            // 更新计数
+            updateCount('sensitive-count', data.sensitive_info ? data.sensitive_info.length : 0);
+            updateCount('risk-count', data.high_risk_dirs ? data.high_risk_dirs.length : 0);
+            updateCount('subdomain-count', data.subdomains ? data.subdomains.length : 0);
+            updateCount('chunk-count', data.chunk_js ? data.chunk_js.length : 0);
+            updateCount('js-count', data.js_files ? data.js_files.length : 0);
+            updateCount('image-count', data.images ? data.images.length : 0);
+
+            const totalUrls = (data.success_urls ? data.success_urls.length : 0) +
+                (data.other_urls ? data.other_urls.length : 0) +
+                (data.error_urls ? data.error_urls.length : 0);
+            updateCount('url-count', totalUrls);
+
+            // 渲染敏感信息表格
+            filterSensitiveInfo();
+
+            // 渲染高危目录表格
+            renderTable('risk-table', data.high_risk_dirs, item => `
+                <td><div class="truncate" title="${escapeHtml(item.url || '')}"><a href="${item.url || '#'}" target="_blank">${escapeHtml(item.url || '')}</a></div></td>
+                <td><span class="badge ${getStatusBadgeClass(item.code)}">${item.code || ''}</span></td>
+                <td>${formatFileSize(item.size || 0)}</td>
+                <td>${item.time || ''}</td>
+            `);
+
+            // 渲染子域名表格
+            renderTable('subdomain-table', data.subdomains, item => `
+                <td><div class="truncate" title="${escapeHtml(item.url || '')}">${escapeHtml(item.url || '')}</div></td>
+                <td>${item.time || ''}</td>
+            `);
+
+            // 渲染Chunk JS表格
+            renderTable('chunk-table', data.chunk_js, item => `
+                <td><div class="truncate" title="${escapeHtml(item.url || '')}"><a href="${item.url || '#'}" target="_blank">${escapeHtml(item.url || '')}</a></div></td>
+                <td><span class="badge ${getStatusBadgeClass(item.code)}">${item.code || ''}</span></td>
+                <td>${formatFileSize(item.size || 0)}</td>
+                <td>${item.time || ''}</td>
+            `);
+
+            // 渲染JS文件表格
+            renderTable('js-table', data.js_files, item => `
+                <td><div class="truncate" title="${escapeHtml(item.url || '')}"><a href="${item.url || '#'}" target="_blank">${escapeHtml(item.url || '')}</a></div></td>
+                <td><span class="badge ${getStatusBadgeClass(item.code)}">${item.code || ''}</span></td>
+                <td>${formatFileSize(item.size || 0)}</td>
+                <td>${item.time || ''}</td>
+            `);
+
+            // 渲染图片表格
+            renderTable('image-table', data.images, item => `
+                <td><div class="truncate" title="${escapeHtml(item.url || '')}"><a href="${item.url || '#'}" target="_blank">${escapeHtml(item.url || '')}</a></div></td>
+                <td><img src="${item.url || ''}" class="img-preview" data-url="${item.url || ''}" alt="图片预览"></td>
+                <td><span class="badge ${getStatusBadgeClass(item.code)}">${item.code || ''}</span></td>
+                <td>${formatFileSize(item.size || 0)}</td>
+                <td>${item.time || ''}</td>
+            `);
+
+            // 组合所有URL数据用于URL标签页
+            allUrlsData = [
+                ...(data.success_urls || []).map(item => ({ ...item, category: 'success' })),
+                ...(data.other_urls || []).map(item => ({ ...item, category: 'other' })),
+                ...(data.error_urls || []).map(item => ({ ...item, category: 'error' }))
+            ];
+
+            // 渲染URL表格
+            filterUrls();
+
+            // 设置事件监听器
+            setupEventListeners();
+        }
+
+        // 更新计数
+        function updateCount(elementId, count) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = count;
+            }
+        }
+
+        // 渲染表格
+        function renderTable(tableId, data, rowRenderer) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+
+            table.innerHTML = '';
+
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td colspan="10" class="text-center">暂无数据</td>`;
+                table.appendChild(row);
+                return;
+            }
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = rowRenderer(item);
+                table.appendChild(row);
+            });
+        }
+
+        // 筛选URL表格
+        function filterUrls() {
+            const statusFilter = document.getElementById('status-filter').value;
+            const searchText = document.getElementById('url-search').value.toLowerCase();
+
+            // 组合所有URL数据
+            let allUrlData = [
+                ...(allData.success_urls || []),
+                ...(allData.other_urls || []),
+                ...(allData.error_urls || [])
+            ];
+
+            // 如果有目标筛选，应用它
+            if (currentTarget !== 'all') {
+                allUrlData = allUrlData.filter(item => item.url && item.url.includes(currentTarget));
+            }
+
+            // 过滤掉空URL或无效URL的项
+            allUrlData = allUrlData.filter(item => item && item.url && item.url.trim() !== '');
+
+            // 应用状态码筛选
+            let filteredUrls = [...allUrlData];
+            if (statusFilter !== 'all' && statusFilter !== 'other') {
+                // 转换为数字进行比较
+                const statusCode = parseInt(statusFilter, 10);
+                filteredUrls = filteredUrls.filter(item => item.code === statusCode);
+            } else if (statusFilter === 'other') {
+                // "其他状态码"选项 - 过滤掉常见状态码
+                const commonCodes = [200, 301, 302, 304, 400, 401, 403, 404, 500, 502, 503];
+                filteredUrls = filteredUrls.filter(item => !commonCodes.includes(item.code));
+            }
+
+            // 应用搜索筛选
+            if (searchText) {
+                filteredUrls = filteredUrls.filter(item =>
+                    (item.url && item.url.toLowerCase().includes(searchText))
+                );
+            }
+
+            // 获取URL表格容器
+            const urlTableContainer = document.getElementById('url-table-container');
+            if (!urlTableContainer) {
+                console.error('找不到URL表格容器');
+                return;
+            }
+
+            // 清空表格容器
+            urlTableContainer.innerHTML = '';
+
+            if (filteredUrls.length === 0) {
+                urlTableContainer.innerHTML = '<div class="alert alert-info mt-3">无URL数据</div>';
+                return;
+            }
+
+            // 创建表格元素
+            const tableHtml = `
+                <div class="table-fixed-height">
+                    <table class="table table-striped table-urls table-resizable">
+                        <thead>
+                            <tr>
+                                <th style="width: 60%">URL<div class="resizer"></div></th>
+                                <th style="width: 10%">状态码<div class="resizer"></div></th>
+                                <th style="width: 10%">大小<div class="resizer"></div></th>
+                                <th style="width: 20%">时间<div class="resizer"></div></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filteredUrls.map(item => `
+                                <tr>
+                                    <td class="full-url"><a href="${item.url || '#'}" target="_blank">${escapeHtml(item.url || '')}</a></td>
+                                    <td><span class="badge ${getStatusBadgeClass(item.code)}">${item.code || ''}</span></td>
+                                    <td>${formatFileSize(item.size || 0)}</td>
+                                    <td>${item.time || ''} ms</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            urlTableContainer.innerHTML = tableHtml;
+
+            // 初始化列宽调整功能
+            initResizableTables();
+        }
+
+        // 初始化表格列宽调整功能
+        function initResizableTables() {
+            const tables = document.querySelectorAll('.table-resizable');
+
+            tables.forEach(table => {
+                const resizers = table.querySelectorAll('.resizer');
+
+                resizers.forEach(resizer => {
+                    resizer.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+
+                        // 获取当前列头
+                        const th = resizer.parentElement;
+                        // 获取当前列索引
+                        const index = Array.from(th.parentElement.children).indexOf(th);
+
+                        // 记录鼠标初始位置和列宽
+                        const startX = e.clientX;
+                        const startWidth = th.offsetWidth;
+
+                        // 添加正在调整标志类
+                        resizer.classList.add('resizing');
+
+                        // 鼠标移动处理函数
+                        function onMouseMove(e) {
+                            // 计算移动距离
+                            const dx = e.clientX - startX;
+                            // 计算新宽度
+                            let newWidth = startWidth + dx;
+
+                            // 设置最小宽度限制，为匹配内容列提供更大的最小宽度
+                            const minWidth = th.classList.contains('match-content-column') ? 150 : 50;
+                            if (newWidth < minWidth) newWidth = minWidth;
+
+                            // 设置新宽度
+                            th.style.width = `${newWidth}px`;
+
+                            // 更新该列所有单元格宽度
+                            const cells = table.querySelectorAll(`tr td:nth-child(${index + 1})`);
+                            cells.forEach(cell => {
+                                cell.style.width = `${newWidth}px`;
+                            });
+                        }
+
+                        // 鼠标释放处理函数
+                        function onMouseUp() {
+                            // 移除正在调整标志类
+                            resizer.classList.remove('resizing');
+
+                            // 移除事件监听器
+                            document.removeEventListener('mousemove', onMouseMove);
+                            document.removeEventListener('mouseup', onMouseUp);
+                        }
+
+                        // 添加鼠标移动和释放事件监听器
+                        document.addEventListener('mousemove', onMouseMove);
+                        document.addEventListener('mouseup', onMouseUp);
+                    });
+                });
+            });
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 图片预览点击事件
+            document.querySelectorAll('.img-preview').forEach(img => {
+                img.addEventListener('click', function () {
+                    const url = this.getAttribute('data-url');
+                    const modal = new bootstrap.Modal(document.getElementById('image-modal'));
+                    document.getElementById('image-modal-content').src = url;
+                    document.getElementById('image-download').href = url;
+                    document.getElementById('image-open').href = url;
+                    modal.show();
+                });
+            });
+
+            // 查看全文按钮事件
+            document.querySelectorAll('.view-full').forEach(button => {
+                button.addEventListener('click', function () {
+                    const content = this.getAttribute('data-content');
+                    const modal = new bootstrap.Modal(document.getElementById('content-modal'));
+                    document.getElementById('content-modal-text').textContent = content;
+                    modal.show();
+                });
+            });
+        }
+
+        // 导出子域名
+        function exportSubdomains() {
+            if (!allData || !allData.subdomains || allData.subdomains.length === 0) {
+                alert('没有可导出的子域名数据');
+                return;
+            }
+
+            let subdomains = allData.subdomains;
+            if (currentTarget !== 'all') {
+                subdomains = subdomains.filter(item => item.url.includes(currentTarget));
+            }
+
+            if (subdomains.length === 0) {
+                alert('当前筛选条件下没有可导出的子域名数据');
+                return;
+            }
+
+            const text = subdomains.map(item => item.url).join('\n');
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'subdomains.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 获取状态码对应的样式
+        function getStatusBadgeClass(code) {
+            if (code === 200) return 'bg-success';
+            if (code === 404) return 'bg-danger';
+            if (code >= 500) return 'bg-warning';
+            if (code >= 300) return 'bg-info';
+            return 'bg-secondary';
+        }
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            if (!bytes) return '';
+
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + units[i];
+        }
+
+        // HTML转义
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // 筛选敏感信息表格
+        function filterSensitiveInfo() {
+            const keyFilter = document.getElementById('sensitive-key-filter').value;
+            const searchText = document.getElementById('sensitive-search').value.toLowerCase();
+
+            // 获取敏感信息数据
+            let sensitiveData = allData.sensitive_info || [];
+
+            // 如果有目标筛选，应用它
+            if (currentTarget !== 'all') {
+                sensitiveData = sensitiveData.filter(item => item.url && item.url.includes(currentTarget));
+            }
+
+            // 应用关键字类型筛选
+            if (keyFilter !== 'all') {
+                sensitiveData = sensitiveData.filter(item => item.key === keyFilter);
+            }
+
+            // 应用内容搜索筛选
+            if (searchText) {
+                sensitiveData = sensitiveData.filter(item =>
+                    (item.match && item.match.toLowerCase().includes(searchText)) ||
+                    (item.url && item.url.toLowerCase().includes(searchText))
+                );
+            }
+
+            // 渲染敏感信息表格
+            renderTable('sensitive-table', sensitiveData, item => `
+                <td><div class="truncate" title="${escapeHtml(item.key || '')}">${escapeHtml(item.key || '')}</div></td>
+                <td>
+                    <div class="match-content-truncate" title="${escapeHtml(item.match || '')}">${escapeHtml(item.match || '')}</div>
+                    <button class="btn btn-sm btn-link view-full mt-1" data-content="${escapeHtml(item.match || '')}">查看全文</button>
+                </td>
+                <td><div class="truncate" title="${escapeHtml(item.url || '')}">${escapeHtml(item.url || '')}</div></td>
+                <td>${item.time || ''}</td>
+            `);
+
+            // 重新绑定事件
+            setupEventListeners();
+        }
+
+        // 初始化敏感信息关键字筛选器
+        function initSensitiveKeyFilter(data) {
+            const keyFilter = document.getElementById('sensitive-key-filter');
+            if (!keyFilter || !data.sensitive_info) return;
+
+            // 收集所有敏感信息的关键字类型
+            const keyTypes = new Set();
+
+            data.sensitive_info.forEach(item => {
+                if (item && item.key) {
+                    keyTypes.add(item.key);
+                }
+            });
+
+            // 将Set转换为数组并排序
+            const sortedKeyTypes = Array.from(keyTypes).sort();
+
+            // 清空当前选项（保留"全部"选项）
+            keyFilter.innerHTML = '<option value="all">全部类型</option>';
+
+            // 添加各个关键字类型选项
+            sortedKeyTypes.forEach(key => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = key;
+                keyFilter.appendChild(option);
+            });
+        }
+
+        // 导出敏感信息
+        function exportSensitiveInfo() {
+            const keyFilter = document.getElementById('sensitive-key-filter').value;
+            const searchText = document.getElementById('sensitive-search').value.toLowerCase();
+
+            // 获取敏感信息数据
+            let sensitiveData = allData.sensitive_info || [];
+
+            // 如果有目标筛选，应用它
+            if (currentTarget !== 'all') {
+                sensitiveData = sensitiveData.filter(item => item.url && item.url.includes(currentTarget));
+            }
+
+            // 应用关键字类型筛选
+            if (keyFilter !== 'all') {
+                sensitiveData = sensitiveData.filter(item => item.key === keyFilter);
+            }
+
+            // 应用内容搜索筛选
+            if (searchText) {
+                sensitiveData = sensitiveData.filter(item =>
+                    (item.match && item.match.toLowerCase().includes(searchText)) ||
+                    (item.url && item.url.toLowerCase().includes(searchText))
+                );
+            }
+
+            if (sensitiveData.length === 0) {
+                alert('没有可导出的敏感信息数据');
+                return;
+            }
+
+            // 格式化敏感信息为文本
+            const text = sensitiveData.map(item =>
+                `${item.match || ''}\n`
+            ).join('');
+
+            // 创建Blob对象并下载
+            const blob = new Blob([text], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '敏感信息_' + (keyFilter !== 'all' ? keyFilter + '_' : '') + new Date().toISOString().replace(/[:.]/g, '-') + '.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+
+</html>
