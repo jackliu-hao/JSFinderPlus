@@ -226,7 +226,7 @@ class InfoOutput(threading.Thread):
         
         # 分离图片和JS文件
         for url, code, size in jsList:
-            if url.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico')):
+            if url.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.webp' , '.pdf' )):
                 imageList.append((url, code, size))
             else:
                 newJsList.append((url, code, size))
@@ -273,13 +273,13 @@ class InfoOutput(threading.Thread):
             print(color.yellow("[!] 没有发现敏感信息数据，leak_infos_match为空"))
             # 为了调试，添加多个测试项
             test_data = [
-                {
-                    "key": "测试数据-内部IP",
-                    "match": "192.168.1.1",
-                    "url": globals.get_value("URL") or "https://example.com/admin",
-                    "type": 3,
-                    "time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
-                }
+                # {
+                #     "key": "测试数据-内部IP",
+                #     "match": "192.168.1.1",
+                #     "url": globals.get_value("URL") or "https://example.com/admin",
+                #     "type": 3,
+                #     "time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) 
+                # }
             ]
             
             # 添加测试数据到报告
